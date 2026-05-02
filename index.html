@@ -1,1 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Informe de Contratación Directa — MEF</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1f3d;--navy2:#1a3060;
+  --gold:#c8a84b;--gold-l:#e8d08a;
+  --cream:#f7f4ee;--cream-d:#ede9e0;
+  --text:#1a1a2e;--muted:#6b6b7a;
+  --border:#d4cfc4;
+  --green:#2d6a4f;--red:#8b1a1a;
+  --white:#ffffff;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+header{background:var(--navy);color:var(--white);padding:2rem 2rem 1.75rem;position:relative}
+header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--gold-l),var(--gold))}
+.header-inner{max-width:780px;margin:0 auto}
+.etiqueta{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem}
+header h1{font-family:'DM Serif Display',serif;font-size:1.6rem;font-weight:400;line-height:1.2}
+header p{margin-top:.4rem;color:rgba(255,255,255,.6);font-size:13px;font-weight:300}
+main{max-width:780px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.seccion{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:1.75rem 0 .75rem;display:flex;align-items:center;gap:.5rem}
+.seccion::after{content:'';flex:1;height:1px;background:var(--border)}
+.card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin-bottom:1rem}
+.campo{margin-bottom:1rem}
+.campo:last-child{margin-bottom:0}
+label{display:block;font-size:13px;font-weight:500;margin-bottom:.35rem}
+label .hint{color:var(--muted);font-weight:300;font-size:12px}
+select,input[type=text]{width:100%;padding:.6rem .85rem;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--cream);transition:border-color .15s,box-shadow .15s;outline:none;appearance:none}
+select:focus,input[type=text]:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(15,31,61,.08);background:var(--white)}
+select:disabled{opacity:.5;cursor:not-allowed}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+.puesto-info{display:none;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-top:.75rem;font-size:13px}
+.puesto-info.visible{display:block}
+.pi-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem}
+.pi-val{color:var(--text);margin-bottom:.75rem}
+.pi-val:last-child{margin-bottom:0}
+.btn{width:100%;padding:.95rem;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:background .2s,transform .1s;display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.5rem}
+.btn-primary{background:var(--navy);color:var(--white)}
+.btn-primary:hover{background:var(--navy2)}
+.btn-primary:active{transform:scale(.99)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.status{display:none;align-items:center;gap:.75rem;padding:.9rem 1.2rem;background:var(--navy);color:var(--white);border-radius:8px;margin-bottom:1rem;font-size:13.5px}
+.status.on{display:flex}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error{display:none;padding:.9rem 1.2rem;background:#fff5f5;border:1px solid #f5c6c6;border-radius:8px;color:var(--red);font-size:13.5px;margin-bottom:1rem}
+.error.on{display:block}
+.resultado{display:none}
+.resultado.on{display:block}
+.doc-preview{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:2rem;font-size:13.5px;line-height:1.9;white-space:pre-wrap;word-break:break-word;max-height:620px;overflow-y:auto;margin-bottom:1rem}
+.acciones{display:flex;gap:.75rem;flex-wrap:wrap}
+.acciones button{flex:1;min-width:130px;padding:.7rem 1rem;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:var(--white);color:var(--navy)}
+.acciones button:hover{background:var(--cream-d)}
+.acciones button.prim{background:var(--navy);color:var(--white);border-color:var(--navy)}
+.acciones button.prim:hover{background:var(--navy2)}
+.cargando-overlay{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;z-index:999}
+.cargando-overlay.oculto{display:none}
+.cargando-overlay p{color:rgba(255,255,255,.7);font-size:14px}
+.cargando-overlay .logo{font-family:'DM Serif Display',serif;color:var(--white);font-size:1.4rem}
+.cargando-overlay .barra{width:240px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
+.cargando-overlay .barra-fill{height:100%;background:var(--gold);border-radius:2px;animation:cargar 1.8s ease-in-out infinite}
+@keyframes cargar{0%{width:0%}60%{width:90%}100%{width:100%}}
+</style>
+</head>
+<body>
 
+<div class="cargando-overlay" id="overlay">
+  <div class="logo">MEF · OGRH</div>
+  <div class="barra"><div class="barra-fill"></div></div>
+  <p>Cargando datos de puestos...</p>
+</div>
+
+<header>
+  <div class="header-inner">
+    <div class="etiqueta">MEF · OGRH · Herramienta interna</div>
+    <h1>Generador de Informe de Contratación Directa</h1>
+    <p>Selecciona el puesto y completa los datos del requerimiento. El informe preliminar se genera automáticamente. Cuando termines de completar, descarga el informe y completa el sustento, la urgencia y las firmas correspondientes.</p>
+  </div>
+</header>
+
+<main>
+
+<div class="seccion">Identificación del puesto</div>
+<div class="card">
+  <div class="campo">
+    <label>Órgano</label>
+    <select id="sel-organo" onchange="onOrgano()" disabled>
+      <option value="">— Cargando datos... —</option>
+    </select>
+  </div>
+  <div class="campo">
+    <label>Unidad orgánica <span class="hint">— Si el puesto pertenece directamente al órgano, selecciona "No aplica"</span></label>
+    <select id="sel-unidad" onchange="onUnidad()" disabled>
+      <option value="">— Primero selecciona un órgano —</option>
+    </select>
+  </div>
+  <div class="campo">
+    <label>Puesto</label>
+    <select id="sel-puesto" onchange="onPuesto()" disabled>
+      <option value="">— Primero selecciona una unidad —</option>
+    </select>
+  </div>
+  <div class="puesto-info" id="puesto-info">
+    <div class="pi-label">Código del puesto</div>
+    <div class="pi-val" id="pi-codigo">—</div>
+    <div class="pi-label">Compensación mensual (referencial)</div>
+    <div class="pi-val" id="pi-pago">—</div>
+    <div class="pi-label">Misión del puesto (MPP)</div>
+    <div class="pi-val" id="pi-mision">—</div>
+  </div>
+</div>
+
+<div class="seccion">Datos del requerimiento</div>
+<div class="card">
+  <div class="grid2">
+    <div class="campo">
+      <label>N° de posiciones</label>
+      <select id="sel-posiciones">
+        <option value="">— Selecciona —</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Plazo de contratación (meses)</label>
+      <select id="sel-plazo">
+        <option value="">— Selecciona —</option>
+      </select>
+    </div>
+  </div>
+  <div class="campo">
+    <label>Candidato/a propuesto/a <span class="hint">— Apellidos y nombres (opcional)</span></label>
+    <input type="text" id="inp-candidato" placeholder="Si ya se tiene identificado/a">
+  </div>
+</div>
+
+<div class="error" id="error-box"></div>
+<div class="status" id="status-bar">
+  <div class="spinner"></div>
+  <span id="status-txt">Generando informe...</span>
+</div>
+
+<button class="btn btn-primary" id="btn-gen" onclick="generar()">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  Generar informe
+</button>
+
+<div class="resultado" id="resultado">
+  <div class="seccion" style="margin-top:1.5rem">Informe generado</div>
+  <div class="doc-preview" id="doc-preview"></div>
+  <div class="acciones">
+    <button onclick="copiar()">Copiar texto</button>
+    <button onclick="generar()">Regenerar</button>
+    <button class="prim" onclick="descargar()">Descargar .txt</button>
+  </div>
+</div>
+
+</main>
+
+<script>
+let DB = null;
+
+// Load data.json externally
+fetch('data.json')
+  .then(r => {
+    if (!r.ok) throw new Error('No se pudo cargar data.json');
+    return r.json();
+  })
+  .then(data => {
+    DB = data;
+    inicializar();
+    document.getElementById('overlay').classList.add('oculto');
+  })
+  .catch(e => {
+    document.getElementById('overlay').innerHTML = '<p style="color:#f5c6c6;padding:2rem;text-align:center">Error cargando datos: ' + e.message + '</p>';
+  });
+
+function inicializar() {
+  const selOrgano = document.getElementById('sel-organo');
+  selOrgano.innerHTML = '<option value="">— Selecciona un órgano —</option>';
+  Object.keys(DB.estructura).sort().forEach(org => {
+    const opt = document.createElement('option');
+    opt.value = org; opt.textContent = org;
+    selOrgano.appendChild(opt);
+  });
+  selOrgano.disabled = false;
+
+  const selPos = document.getElementById('sel-posiciones');
+  for (let i = 1; i <= 20; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i;
+    selPos.appendChild(o);
+  }
+
+  const selPlazo = document.getElementById('sel-plazo');
+  for (let i = 1; i <= 9; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i + ' ' + (i === 1 ? 'mes' : 'meses');
+    selPlazo.appendChild(o);
+  }
+}
+
+function onOrgano() {
+  const org = document.getElementById('sel-organo').value;
+  const selUnidad = document.getElementById('sel-unidad');
+  const selPuesto = document.getElementById('sel-puesto');
+  selUnidad.innerHTML = '';
+  selPuesto.innerHTML = '<option value="">— Primero selecciona una unidad —</option>';
+  selPuesto.disabled = true;
+  document.getElementById('puesto-info').classList.remove('visible');
+  if (!org) {
+    selUnidad.innerHTML = '<option value="">— Primero selecciona un órgano —</option>';
+    selUnidad.disabled = true;
+    return;
+  }
+  const unidades = Object.keys(DB.estructura[org]).sort();
+  selUnidad.innerHTML = '<option value="">— Selecciona una unidad —</option>';
+  unidades.forEach(u => {
+    const o = document.createElement('option');
+    o.value = u; o.textContent = u;
+    selUnidad.appendChild(o);
+  });
+  selUnidad.disabled = false;
+}
+
+function onUnidad() {
+  const org = document.getElementById('sel-organo').value;
+  const uni = document.getElementById('sel-unidad').value;
+  const selPuesto = document.getElementById('sel-puesto');
+  selPuesto.innerHTML = '';
+  selPuesto.disabled = !uni;
+  document.getElementById('puesto-info').classList.remove('visible');
+  if (!uni) {
+    selPuesto.innerHTML = '<option value="">— Primero selecciona una unidad —</option>';
+    return;
+  }
+  const codigos = DB.estructura[org][uni];
+  selPuesto.innerHTML = '<option value="">— Selecciona un puesto —</option>';
+  codigos.sort((a, b) => DB.puestos[a].nombre.localeCompare(DB.puestos[b].nombre)).forEach(cod => {
+    const p = DB.puestos[cod];
+    const o = document.createElement('option');
+    o.value = cod; o.textContent = p.nombre;
+    selPuesto.appendChild(o);
+  });
+  selPuesto.disabled = false;
+}
+
+function onPuesto() {
+  const cod = document.getElementById('sel-puesto').value;
+  const info = document.getElementById('puesto-info');
+  if (!cod) { info.classList.remove('visible'); return; }
+  const p = DB.puestos[cod];
+  document.getElementById('pi-codigo').textContent = p.codigo || '—';
+  document.getElementById('pi-pago').textContent = p.pago || '—';
+  document.getElementById('pi-mision').textContent = p.mision
+    ? p.mision.substring(0, 220) + (p.mision.length > 220 ? '…' : '')
+    : 'No disponible en MPP';
+  info.classList.add('visible');
+}
+
+function err(msg) {
+  const b = document.getElementById('error-box');
+  b.textContent = msg; b.classList.add('on');
+  setTimeout(() => b.classList.remove('on'), 5000);
+}
+
+function setStatus(msg) { document.getElementById('status-txt').textContent = msg; }
+
+async function generar() {
+  const org = document.getElementById('sel-organo').value;
+  const uni = document.getElementById('sel-unidad').value;
+  const cod = document.getElementById('sel-puesto').value;
+  const pos = document.getElementById('sel-posiciones').value;
+  const plazo = document.getElementById('sel-plazo').value;
+  const candidato = document.getElementById('inp-candidato').value.trim();
+
+  if (!org) return err('Selecciona un órgano.');
+  if (!uni) return err('Selecciona una unidad orgánica.');
+  if (!cod) return err('Selecciona un puesto.');
+  if (!pos) return err('Selecciona el número de posiciones.');
+  if (!plazo) return err('Selecciona el plazo de contratación.');
+
+  const p = DB.puestos[cod];
+  const rof = DB.rof[org] || {};
+  const hoy = new Date();
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fecha = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  const plazoNum = parseInt(plazo);
+  const plazoTxt = plazoNum === 1 ? '1 mes' : `${plazoNum} meses`;
+  const ubicacion = uni === 'No aplica' ? org : uni;
+  const tablaUbicacion = uni === 'No aplica' ? org : `${org} / ${uni}`;
+
+  const btn = document.getElementById('btn-gen');
+  btn.disabled = true;
+  document.getElementById('error-box').classList.remove('on');
+  document.getElementById('status-bar').classList.add('on');
+  document.getElementById('resultado').classList.remove('on');
+
+  const funcionesStr = p.funciones.length > 0
+    ? p.funciones.map((f, i) => `FUNCIÓN ${i+1}: ${f}`).join('\n')
+    : 'No disponible';
+
+  const rofTxt = rof.texto
+    ? `Artículo ${rof.articulo}. ${rof.titulo || ''}: ${rof.texto}`
+    : 'No disponible';
+
+  const prompt = `Eres especialista en gestión de recursos humanos del sector público peruano. Redacta un informe completo de contratación directa del MEF en lenguaje institucional formal, siguiendo exactamente la estructura indicada.
+
+DATOS DEL REQUERIMIENTO:
+- Órgano: ${org}
+- Unidad orgánica: ${uni}
+- Denominación del puesto: ${p.nombre}
+- Código del puesto: ${p.codigo}
+- N° de posiciones: ${pos}
+- Plazo de contratación: ${plazoTxt}
+- Compensación mensual (referencial): ${p.pago}
+- Candidato/a: ${candidato || '[Apellidos y Nombres del candidato/a]'}
+- Fecha: Lima, ${fecha}
+
+DATOS DEL MPP:
+Misión del puesto: ${p.mision || 'No disponible'}
+${funcionesStr}
+
+DATOS DEL ROF (${org}):
+${rofTxt}
+
+INSTRUCCIONES:
+1. En la sección 2.1, usa el artículo ${rof.articulo || '[N°]'} del ROF. Redacta 2 párrafos: el primero describe qué es el órgano y su función general; el segundo cita la función más relevante vinculada al puesto.
+2. En la sección 2.3, elige las 3 funciones del MPP más relevantes para el puesto y listarlas en cursiva.
+3. Los campos que dependen del área usuaria (carga laboral, incremento extraordinario, urgencia) déjalos con corchetes marcados como [ÁREA USUARIA: instrucción precisa de qué completar].
+4. Sigue EXACTAMENTE este formato, sin omitir ninguna sección:
+
+MINISTERIO DE ECONOMÍA Y FINANZAS
+OFICINA GENERAL DE RECURSOS HUMANOS
+
+"DECENIO DE LA IGUALDAD DE OPORTUNIDADES PARA MUJERES Y HOMBRES"
+"AÑO DE LA RECUPERACIÓN Y CONSOLIDACIÓN DE LA ECONOMÍA PERUANA"
+
+INFORME N° [completar]-2026-EF/49.03
+
+Para         :    [Nombre y cargo del/la superior jerárquico/a]
+
+Asunto       :    Requerimiento de Contratación Directa en el marco de la Ley N° 30057, Ley del Servicio Civil
+
+Fecha        :    Lima, ${fecha}
+
+Me dirijo a usted con la finalidad de sustentar la necesidad de gestionar la contratación directa de ${pos} posición(es) correspondiente(s) al puesto de ${p.nombre} de ${ubicacion}, en el marco de lo establecido en el artículo 84 de la Ley N° 30057, Ley del Servicio Civil y el artículo 178 de su Reglamento General, aprobado mediante Decreto Supremo N° 040-2014-PCM, concordante con lo previsto en el artículo 13 de la Directiva N° 005-2024-SERVIR-GDSRH, aprobada por Resolución de Presidencia Ejecutiva N° 000058-2024-SERVIR-PE.
+
+1. BASE LEGAL:
+
+- Ley N° 32513, Ley de Presupuesto del Sector Público para el Año Fiscal 2026.
+- Ley N° 30057, Ley del Servicio Civil.
+- Decreto Supremo N° 040-2014-PCM, Reglamento General de la Ley del Servicio Civil.
+- Resolución de Presidencia Ejecutiva N° 000058-2024-SERVIR-PE, que aprueba la Directiva N° 005-2024-SERVIR-GDSRH "Contratación directa de puestos del régimen del Servicio Civil y límite máximo para la contratación temporal".
+
+2. ANÁLISIS:
+
+2.1 De las competencias atribuidas a ${org}
+
+[Redactar usando artículo ${rof.articulo || '[N°]'} del ROF: 2 párrafos institucionales sobre el órgano y su función vinculada al puesto]
+
+2.2 Del estado situacional de ${ubicacion}
+
+- En el marco de la implementación del régimen del servicio civil, a través de Resolución de Presidencia Ejecutiva N° 110-2020-SERVIR-PE de fecha 22 de diciembre de 2020, se aprobó el Cuadro de Puestos de la Entidad (CPE) del Ministerio de Economía y Finanzas – MEF.
+
+- Con fecha 29 de diciembre de 2023, se aprobó la actualización del Cuadro de Puestos de la Entidad, mediante Resolución Ministerial N° 443-2023-EF/49 en el cual se contempló un total de 2165 posiciones a ser cubiertas. Dicho documento se encuentra vigente a la fecha, en el cual se tiene previsto, entre otros, el siguiente puesto:
+
+| Órgano | Unidad Orgánica | Código del Puesto | Denominación del Puesto | Situación |
+|---|---|---|---|---|
+| ${org} | ${uni} | ${p.codigo} | ${p.nombre} | Vacante |
+
+2.3 De la justificación de la contratación directa del puesto de ${p.nombre}
+
+- El puesto requerido pertenece a ${ubicacion}, que tiene entre sus funciones, conforme al artículo ${rof.articulo || '[N°]'} del ROF – MEF, las siguientes:
+
+[Listar 2-3 funciones del ROF directamente relacionadas al puesto, en cursiva]
+
+- Como se aprecia, las funciones que desarrolla dicha unidad orgánica revisten un impacto [estratégico / operativo / técnico — elegir el más adecuado] en cuanto a [descripción del impacto vinculado al puesto].
+
+- En base a ello, para la ejecución de dichas actividades, se requiere contar con un profesional que temporalmente ocupe el puesto de ${p.nombre}, que según el Manual de Perfiles de Puestos vigente, tiene como misión: ${p.mision || '[misión del puesto según el MPP]'}
+
+- Asimismo, según el Manual de Perfiles de Puestos, este puesto tiene como funciones principales:
+
+[Listar las 3 funciones más relevantes del MPP, en cursiva]
+
+- Con respecto a las actividades que tenía el puesto, este venía atendiendo una carga laboral de [ÁREA USUARIA: Describir la carga operativa actual con datos concretos: número de expedientes, proyectos en curso, plazos próximos, etc.]
+
+- En tal sentido, la situación descrita configura, para efectos de la contratación directa, un supuesto excepcional de incremento extraordinario y temporal de actividades, en los términos previstos en el artículo 13 de la Directiva N° 005-2024-SERVIR-GDSRH, aplicado a una posición vacante contenida en el Cuadro N° 1 del CPE, en tanto la ausencia de un ocupante del puesto genera una necesidad inmediata que no puede ser postergada hasta la culminación del concurso público correspondiente.
+
+- Asimismo, en atención a lo previsto en el numeral 13.5 de la Directiva N° 005-2024-SERVIR-GDSRH, se sustenta el cumplimiento de los siguientes criterios:
+
+- Incremento extraordinario y estacionalidad de las actividades:
+[ÁREA USUARIA: Describir las actividades nuevas o incrementadas, su carácter estacional o coyuntural, y su vinculación al cumplimiento de metas u objetivos institucionales.]
+
+- Temporalidad de la contratación:
+Se justifica en la medida que el puesto saldrá a concurso público de méritos, conllevando a que el plazo de contratación sea temporal.
+
+- Urgencia de la contratación:
+[ÁREA USUARIA: Señalar por qué la contratación no puede esperar al resultado del concurso público, indicando el impacto concreto que generaría la demora.]
+
+- En cuanto al impacto presupuestal, la contratación directa de la(s) posición(es) correspondiente(s) al puesto de ${p.nombre} tiene la siguiente compensación económica, según el CPE vigente:
+
+| N° | Órgano / Unidad Orgánica | Denominación del puesto | Monto mensual (*) S/ |
+|---|---|---|---|
+| 1 | ${tablaUbicacion} | ${p.nombre} | ${p.pago} |
+
+*La información consignada tiene carácter referencial y se incorpora para fines de evaluación del requerimiento, quedando sujeta a la verificación de la disponibilidad presupuestal correspondiente por parte de los órganos competentes.
+
+- Adicionalmente, en cuanto a las características y condiciones propias de la contratación directa, se precisa lo siguiente:
+
+| Denominación del puesto | ${p.nombre} |
+|---|---|
+| Código del puesto | ${p.codigo} |
+| Cantidad de Posiciones | ${pos} |
+| Plazo de contratación | ${plazoTxt} |
+
+- En ese sentido, se solicita tenga a bien gestionar la contratación directa de la posición descrita previamente de conformidad con lo dispuesto por el artículo 84 de la LSC y artículo 178 de su Reglamento General, para cuyo efecto se acompaña el CV documentado del candidato que se detalla a continuación:
+
+| Órgano / Unidad Orgánica | Denominación del puesto | Candidato/a |
+|---|---|---|
+| ${tablaUbicacion} | ${p.nombre} | ${candidato || '[Apellidos y Nombres]'} |
+
+3. CONCLUSIONES:
+
+- Conforme a lo señalado en el presente Informe, el puesto ${p.nombre} del CPE se sujeta a su cobertura definitiva conforme a la normativa del Servicio Civil.
+
+- Las funciones que desarrolla ${ubicacion} revisten un impacto [estratégico / operativo / técnico] en cuanto a [breve descripción], lo que justifica la necesidad de contar de manera inmediata con el puesto requerido.
+
+- Habiéndose identificado el puesto materia de requerimiento de contratación directa, así como la necesidad de su incorporación inmediata, se configura el supuesto excepcional de incremento extraordinario y temporal de actividades aplicable a una posición vacante contenida en el Cuadro N° 1 del CPE, al que se hace referencia en el artículo 84 de la Ley N° 30057, Ley del Servicio Civil, y en la Directiva N° 005-2024-SERVIR-GDSRH.
+
+- Por lo expuesto, se solicita tenga a bien autorizar la contratación directa de la posición descrita, de conformidad con lo dispuesto por el artículo 84 de la LSC y artículo 178 de su Reglamento General, adjuntándose para tal efecto el CV documentado del candidato respectivo.
+
+Atentamente,
+
+[Nombre y cargo de quien suscribe]
+
+---
+Nota para el área usuaria: Los campos marcados con [ÁREA USUARIA: ...] deben ser completados con información específica de su contexto operativo. Los demás corchetes [ ] corresponden a datos administrativos a completar antes de la firma.`;
+
+  try {
+    setStatus('Analizando datos del puesto y redactando informe...');
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(e.error?.message || `Error ${resp.status}`);
+    }
+    const data = await resp.json();
+    const texto = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    document.getElementById('doc-preview').textContent = texto;
+    document.getElementById('resultado').classList.add('on');
+    document.getElementById('resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    err('Error al generar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    document.getElementById('status-bar').classList.remove('on');
+  }
+}
+
+function copiar() {
+  navigator.clipboard.writeText(document.getElementById('doc-preview').textContent)
+    .then(() => {
+      const b = event.target;
+      b.textContent = '¡Copiado!';
+      setTimeout(() => b.textContent = 'Copiar texto', 2000);
+    });
+}
+
+function descargar() {
+  const texto = document.getElementById('doc-preview').textContent;
+  const sel = document.getElementById('sel-puesto');
+  const puesto = sel.options[sel.selectedIndex]?.text || 'informe';
+  const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Informe_CD_' + puesto.replace(/\s+/g, '_').substring(0, 40) + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
