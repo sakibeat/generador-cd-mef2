@@ -145,19 +145,17 @@ select:disabled{opacity:.5;cursor:not-allowed}
   <span id="status-txt">Generando informe...</span>
 </div>
 
-<button class="btn btn-primary" id="btn-gen" onclick="generar()">
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-  Generar informe
+<button class="btn btn-primary" id="btn-gen" onclick="generarPrompt()">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+  Copiar prompt para Claude
 </button>
 
-<div class="resultado" id="resultado">
-  <div class="seccion" style="margin-top:1.5rem">Informe generado</div>
-  <div class="doc-preview" id="doc-preview"></div>
-  <div class="acciones">
-    <button onclick="copiar()">Copiar texto</button>
-    <button onclick="generar()">Regenerar</button>
-    <button class="prim" onclick="descargar()">Descargar .txt</button>
-  </div>
+<div id="instruccion-box" style="display:none;margin-top:.75rem;padding:1rem 1.25rem;background:#e8f4e8;border:1px solid #a8d5a8;border-radius:8px;font-size:13.5px;line-height:1.7">
+  <strong style="color:#1a4a1a">Prompt copiado.</strong> Ahora sigue estos pasos:<br><br>
+  1. Abre <a href="https://claude.ai" target="_blank" style="color:#0f1f3d;font-weight:500">claude.ai</a> en una nueva pestaña<br>
+  2. Inicia una conversación nueva<br>
+  3. Pega el prompt con <strong>Ctrl+V</strong> y presiona Enter<br>
+  4. Claude generará el informe completo
 </div>
 
 </main>
@@ -263,6 +261,15 @@ function onPuesto() {
   info.classList.add('visible');
 }
 
+function getApiKey() {
+  let key = sessionStorage.getItem('anthropic_key');
+  if (!key) {
+    key = prompt('Ingresa tu API key de Anthropic para usar el generador:\n(Se guarda solo en esta sesión del navegador)');
+    if (key) sessionStorage.setItem('anthropic_key', key.trim());
+  }
+  return key ? key.trim() : null;
+}
+
 function err(msg) {
   const b = document.getElementById('error-box');
   b.textContent = msg; b.classList.add('on');
@@ -271,7 +278,7 @@ function err(msg) {
 
 function setStatus(msg) { document.getElementById('status-txt').textContent = msg; }
 
-async function generar() {
+function generarPrompt() {
   const org = document.getElementById('sel-organo').value;
   const uni = document.getElementById('sel-unidad').value;
   const cod = document.getElementById('sel-puesto').value;
@@ -279,195 +286,46 @@ async function generar() {
   const plazo = document.getElementById('sel-plazo').value;
   const candidato = document.getElementById('inp-candidato').value.trim();
 
-  if (!org) return err('Selecciona un órgano.');
-  if (!uni) return err('Selecciona una unidad orgánica.');
+  if (!org) return err('Selecciona un organo.');
+  if (!uni) return err('Selecciona una unidad organica.');
   if (!cod) return err('Selecciona un puesto.');
-  if (!pos) return err('Selecciona el número de posiciones.');
-  if (!plazo) return err('Selecciona el plazo de contratación.');
+  if (!pos) return err('Selecciona el numero de posiciones.');
+  if (!plazo) return err('Selecciona el plazo de contratacion.');
 
   const p = DB.puestos[cod];
   const rof = DB.rof[org] || {};
   const hoy = new Date();
   const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const fecha = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  const fecha = hoy.getDate() + ' de ' + meses[hoy.getMonth()] + ' de ' + hoy.getFullYear();
   const plazoNum = parseInt(plazo);
-  const plazoTxt = plazoNum === 1 ? '1 mes' : `${plazoNum} meses`;
+  const plazoTxt = plazoNum === 1 ? '1 mes' : plazoNum + ' meses';
   const ubicacion = uni === 'No aplica' ? org : uni;
-  const tablaUbicacion = uni === 'No aplica' ? org : `${org} / ${uni}`;
-
-  const btn = document.getElementById('btn-gen');
-  btn.disabled = true;
-  document.getElementById('error-box').classList.remove('on');
-  document.getElementById('status-bar').classList.add('on');
-  document.getElementById('resultado').classList.remove('on');
+  const tablaUbicacion = uni === 'No aplica' ? org : org + ' / ' + uni;
 
   const funcionesStr = p.funciones.length > 0
-    ? p.funciones.map((f, i) => `FUNCIÓN ${i+1}: ${f}`).join('\n')
+    ? p.funciones.map((f, i) => 'FUNCION ' + (i+1) + ': ' + f).join('\n')
     : 'No disponible';
 
   const rofTxt = rof.texto
-    ? `Artículo ${rof.articulo}. ${rof.titulo || ''}: ${rof.texto}`
+    ? 'Articulo ' + rof.articulo + '. ' + (rof.titulo || '') + ': ' + rof.texto
     : 'No disponible';
 
-  const prompt = `Eres especialista en gestión de recursos humanos del sector público peruano. Redacta un informe completo de contratación directa del MEF en lenguaje institucional formal, siguiendo exactamente la estructura indicada.
+  const intro = 'Eres especialista en gestion de recursos humanos del sector publico peruano. Redacta un informe completo de contratacion directa del MEF en lenguaje institucional formal.\n\n';
+  const datos = 'DATOS DEL REQUERIMIENTO:\n- Organo: ' + org + '\n- Unidad organica: ' + uni + '\n- Denominacion del puesto: ' + p.nombre + '\n- Codigo del puesto: ' + p.codigo + '\n- N de posiciones: ' + pos + '\n- Plazo de contratacion: ' + plazoTxt + '\n- Compensacion mensual (referencial): ' + p.pago + '\n- Candidato/a: ' + (candidato || '[Apellidos y Nombres del candidato/a]') + '\n- Fecha: Lima, ' + fecha + '\n\n';
+  const mpp = 'DATOS DEL MPP:\nMision del puesto: ' + (p.mision || 'No disponible') + '\n' + funcionesStr + '\n\n';
+  const rofSection = 'DATOS DEL ROF (' + org + '):\n' + rofTxt + '\n\n';
+  const instrucciones = 'INSTRUCCIONES:\n1. En la seccion 2.1 usa el articulo ' + (rof.articulo || '[N]') + ' del ROF. Redacta 2 parrafos institucionales: describe el organo y su funcion general; luego cita la funcion mas relevante vinculada al puesto.\n2. En la seccion 2.3 elige las 3 funciones del MPP mas relevantes y listarlas en cursiva.\n3. Los campos de carga laboral, incremento extraordinario y urgencia dejalos con [AREA USUARIA: instruccion precisa].\n4. Genera el informe completo con esta estructura exacta:\n\n';
+  const plantilla = 'MINISTERIO DE ECONOMIA Y FINANZAS\nOFICINA GENERAL DE RECURSOS HUMANOS\n\n"DECENIO DE LA IGUALDAD DE OPORTUNIDADES PARA MUJERES Y HOMBRES"\n"ANO DE LA RECUPERACION Y CONSOLIDACION DE LA ECONOMIA PERUANA"\n\nINFORME N [completar]-2026-EF/49.03\n\nPara         :    [Nombre y cargo del/la superior jerarquico/a]\nAsunto       :    Requerimiento de Contratacion Directa en el marco de la Ley N 30057, Ley del Servicio Civil\nFecha        :    Lima, ' + fecha + '\n\n[Continua con todas las secciones: parrafo introductorio, 1. BASE LEGAL, 2. ANALISIS (2.1, 2.2 con tabla CPE del puesto ' + p.nombre + ' codigo ' + p.codigo + ' situacion Vacante, 2.3 con justificacion completa incluyendo funciones ROF, mision y funciones MPP, tablas de compensacion ' + p.pago + ' y caracteristicas con plazo ' + plazoTxt + ' y ' + pos + ' posiciones), 3. CONCLUSIONES, y firma]';
 
-DATOS DEL REQUERIMIENTO:
-- Órgano: ${org}
-- Unidad orgánica: ${uni}
-- Denominación del puesto: ${p.nombre}
-- Código del puesto: ${p.codigo}
-- N° de posiciones: ${pos}
-- Plazo de contratación: ${plazoTxt}
-- Compensación mensual (referencial): ${p.pago}
-- Candidato/a: ${candidato || '[Apellidos y Nombres del candidato/a]'}
-- Fecha: Lima, ${fecha}
+  const prompt = intro + datos + mpp + rofSection + instrucciones + plantilla;
 
-DATOS DEL MPP:
-Misión del puesto: ${p.mision || 'No disponible'}
-${funcionesStr}
-
-DATOS DEL ROF (${org}):
-${rofTxt}
-
-INSTRUCCIONES:
-1. En la sección 2.1, usa el artículo ${rof.articulo || '[N°]'} del ROF. Redacta 2 párrafos: el primero describe qué es el órgano y su función general; el segundo cita la función más relevante vinculada al puesto.
-2. En la sección 2.3, elige las 3 funciones del MPP más relevantes para el puesto y listarlas en cursiva.
-3. Los campos que dependen del área usuaria (carga laboral, incremento extraordinario, urgencia) déjalos con corchetes marcados como [ÁREA USUARIA: instrucción precisa de qué completar].
-4. Sigue EXACTAMENTE este formato, sin omitir ninguna sección:
-
-MINISTERIO DE ECONOMÍA Y FINANZAS
-OFICINA GENERAL DE RECURSOS HUMANOS
-
-"DECENIO DE LA IGUALDAD DE OPORTUNIDADES PARA MUJERES Y HOMBRES"
-"AÑO DE LA RECUPERACIÓN Y CONSOLIDACIÓN DE LA ECONOMÍA PERUANA"
-
-INFORME N° [completar]-2026-EF/49.03
-
-Para         :    [Nombre y cargo del/la superior jerárquico/a]
-
-Asunto       :    Requerimiento de Contratación Directa en el marco de la Ley N° 30057, Ley del Servicio Civil
-
-Fecha        :    Lima, ${fecha}
-
-Me dirijo a usted con la finalidad de sustentar la necesidad de gestionar la contratación directa de ${pos} posición(es) correspondiente(s) al puesto de ${p.nombre} de ${ubicacion}, en el marco de lo establecido en el artículo 84 de la Ley N° 30057, Ley del Servicio Civil y el artículo 178 de su Reglamento General, aprobado mediante Decreto Supremo N° 040-2014-PCM, concordante con lo previsto en el artículo 13 de la Directiva N° 005-2024-SERVIR-GDSRH, aprobada por Resolución de Presidencia Ejecutiva N° 000058-2024-SERVIR-PE.
-
-1. BASE LEGAL:
-
-- Ley N° 32513, Ley de Presupuesto del Sector Público para el Año Fiscal 2026.
-- Ley N° 30057, Ley del Servicio Civil.
-- Decreto Supremo N° 040-2014-PCM, Reglamento General de la Ley del Servicio Civil.
-- Resolución de Presidencia Ejecutiva N° 000058-2024-SERVIR-PE, que aprueba la Directiva N° 005-2024-SERVIR-GDSRH "Contratación directa de puestos del régimen del Servicio Civil y límite máximo para la contratación temporal".
-
-2. ANÁLISIS:
-
-2.1 De las competencias atribuidas a ${org}
-
-[Redactar usando artículo ${rof.articulo || '[N°]'} del ROF: 2 párrafos institucionales sobre el órgano y su función vinculada al puesto]
-
-2.2 Del estado situacional de ${ubicacion}
-
-- En el marco de la implementación del régimen del servicio civil, a través de Resolución de Presidencia Ejecutiva N° 110-2020-SERVIR-PE de fecha 22 de diciembre de 2020, se aprobó el Cuadro de Puestos de la Entidad (CPE) del Ministerio de Economía y Finanzas – MEF.
-
-- Con fecha 29 de diciembre de 2023, se aprobó la actualización del Cuadro de Puestos de la Entidad, mediante Resolución Ministerial N° 443-2023-EF/49 en el cual se contempló un total de 2165 posiciones a ser cubiertas. Dicho documento se encuentra vigente a la fecha, en el cual se tiene previsto, entre otros, el siguiente puesto:
-
-| Órgano | Unidad Orgánica | Código del Puesto | Denominación del Puesto | Situación |
-|---|---|---|---|---|
-| ${org} | ${uni} | ${p.codigo} | ${p.nombre} | Vacante |
-
-2.3 De la justificación de la contratación directa del puesto de ${p.nombre}
-
-- El puesto requerido pertenece a ${ubicacion}, que tiene entre sus funciones, conforme al artículo ${rof.articulo || '[N°]'} del ROF – MEF, las siguientes:
-
-[Listar 2-3 funciones del ROF directamente relacionadas al puesto, en cursiva]
-
-- Como se aprecia, las funciones que desarrolla dicha unidad orgánica revisten un impacto [estratégico / operativo / técnico — elegir el más adecuado] en cuanto a [descripción del impacto vinculado al puesto].
-
-- En base a ello, para la ejecución de dichas actividades, se requiere contar con un profesional que temporalmente ocupe el puesto de ${p.nombre}, que según el Manual de Perfiles de Puestos vigente, tiene como misión: ${p.mision || '[misión del puesto según el MPP]'}
-
-- Asimismo, según el Manual de Perfiles de Puestos, este puesto tiene como funciones principales:
-
-[Listar las 3 funciones más relevantes del MPP, en cursiva]
-
-- Con respecto a las actividades que tenía el puesto, este venía atendiendo una carga laboral de [ÁREA USUARIA: Describir la carga operativa actual con datos concretos: número de expedientes, proyectos en curso, plazos próximos, etc.]
-
-- En tal sentido, la situación descrita configura, para efectos de la contratación directa, un supuesto excepcional de incremento extraordinario y temporal de actividades, en los términos previstos en el artículo 13 de la Directiva N° 005-2024-SERVIR-GDSRH, aplicado a una posición vacante contenida en el Cuadro N° 1 del CPE, en tanto la ausencia de un ocupante del puesto genera una necesidad inmediata que no puede ser postergada hasta la culminación del concurso público correspondiente.
-
-- Asimismo, en atención a lo previsto en el numeral 13.5 de la Directiva N° 005-2024-SERVIR-GDSRH, se sustenta el cumplimiento de los siguientes criterios:
-
-- Incremento extraordinario y estacionalidad de las actividades:
-[ÁREA USUARIA: Describir las actividades nuevas o incrementadas, su carácter estacional o coyuntural, y su vinculación al cumplimiento de metas u objetivos institucionales.]
-
-- Temporalidad de la contratación:
-Se justifica en la medida que el puesto saldrá a concurso público de méritos, conllevando a que el plazo de contratación sea temporal.
-
-- Urgencia de la contratación:
-[ÁREA USUARIA: Señalar por qué la contratación no puede esperar al resultado del concurso público, indicando el impacto concreto que generaría la demora.]
-
-- En cuanto al impacto presupuestal, la contratación directa de la(s) posición(es) correspondiente(s) al puesto de ${p.nombre} tiene la siguiente compensación económica, según el CPE vigente:
-
-| N° | Órgano / Unidad Orgánica | Denominación del puesto | Monto mensual (*) S/ |
-|---|---|---|---|
-| 1 | ${tablaUbicacion} | ${p.nombre} | ${p.pago} |
-
-*La información consignada tiene carácter referencial y se incorpora para fines de evaluación del requerimiento, quedando sujeta a la verificación de la disponibilidad presupuestal correspondiente por parte de los órganos competentes.
-
-- Adicionalmente, en cuanto a las características y condiciones propias de la contratación directa, se precisa lo siguiente:
-
-| Denominación del puesto | ${p.nombre} |
-|---|---|
-| Código del puesto | ${p.codigo} |
-| Cantidad de Posiciones | ${pos} |
-| Plazo de contratación | ${plazoTxt} |
-
-- En ese sentido, se solicita tenga a bien gestionar la contratación directa de la posición descrita previamente de conformidad con lo dispuesto por el artículo 84 de la LSC y artículo 178 de su Reglamento General, para cuyo efecto se acompaña el CV documentado del candidato que se detalla a continuación:
-
-| Órgano / Unidad Orgánica | Denominación del puesto | Candidato/a |
-|---|---|---|
-| ${tablaUbicacion} | ${p.nombre} | ${candidato || '[Apellidos y Nombres]'} |
-
-3. CONCLUSIONES:
-
-- Conforme a lo señalado en el presente Informe, el puesto ${p.nombre} del CPE se sujeta a su cobertura definitiva conforme a la normativa del Servicio Civil.
-
-- Las funciones que desarrolla ${ubicacion} revisten un impacto [estratégico / operativo / técnico] en cuanto a [breve descripción], lo que justifica la necesidad de contar de manera inmediata con el puesto requerido.
-
-- Habiéndose identificado el puesto materia de requerimiento de contratación directa, así como la necesidad de su incorporación inmediata, se configura el supuesto excepcional de incremento extraordinario y temporal de actividades aplicable a una posición vacante contenida en el Cuadro N° 1 del CPE, al que se hace referencia en el artículo 84 de la Ley N° 30057, Ley del Servicio Civil, y en la Directiva N° 005-2024-SERVIR-GDSRH.
-
-- Por lo expuesto, se solicita tenga a bien autorizar la contratación directa de la posición descrita, de conformidad con lo dispuesto por el artículo 84 de la LSC y artículo 178 de su Reglamento General, adjuntándose para tal efecto el CV documentado del candidato respectivo.
-
-Atentamente,
-
-[Nombre y cargo de quien suscribe]
-
----
-Nota para el área usuaria: Los campos marcados con [ÁREA USUARIA: ...] deben ser completados con información específica de su contexto operativo. Los demás corchetes [ ] corresponden a datos administrativos a completar antes de la firma.`;
-
-  try {
-    setStatus('Analizando datos del puesto y redactando informe...');
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    if (!resp.ok) {
-      const e = await resp.json().catch(() => ({}));
-      throw new Error(e.error?.message || `Error ${resp.status}`);
-    }
-    const data = await resp.json();
-    const texto = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
-    document.getElementById('doc-preview').textContent = texto;
-    document.getElementById('resultado').classList.add('on');
-    document.getElementById('resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (e) {
-    err('Error al generar: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    document.getElementById('status-bar').classList.remove('on');
-  }
+  navigator.clipboard.writeText(prompt).then(() => {
+    document.getElementById('instruccion-box').style.display = 'block';
+    document.getElementById('instruccion-box').scrollIntoView({behavior:'smooth', block:'nearest'});
+    const btn = document.getElementById('btn-gen');
+    btn.textContent = 'Prompt copiado - vuelve a copiar si necesitas';
+    setTimeout(() => { btn.textContent = 'Copiar prompt para Claude'; }, 4000);
+  }).catch(() => err('No se pudo copiar. Intenta de nuevo.'));
 }
 
 function copiar() {
