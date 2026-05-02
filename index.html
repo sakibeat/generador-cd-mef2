@@ -310,14 +310,61 @@ function generarPrompt() {
     ? 'Articulo ' + rof.articulo + '. ' + (rof.titulo || '') + ': ' + rof.texto
     : 'No disponible';
 
-  const intro = 'Eres especialista en gestion de recursos humanos del sector publico peruano. Redacta un informe completo de contratacion directa del MEF en lenguaje institucional formal.\n\n';
+  const intro = `Eres mi asistente especializado en generar informes de contratacion directa del MEF. Con los datos que te proporciono a continuacion, genera directamente el archivo Word (.docx) y entregamelo listo para descargar, sin mostrar el texto en pantalla ni pedir confirmaciones.
+
+FORMATO DEL DOCUMENTO:
+- Margenes: Superior 5.5 cm, Inferior 3 cm, Izquierdo 3 cm, Derecho 3.25 cm
+- Papel A4. Fuente Arial 10pt. Texto justificado
+- Sin encabezado (lo agrego yo manualmente)
+- Nombre del archivo: Informe_CD_${p.nombre.replace(/\s+/g,'_')}.docx
+
+ESTRUCTURA Y NUMERACION:
+- Empieza con el numero de informe subrayado y en negrita: INFORME N° xxxxx-2026-EF/49.03
+- Luego Para / Asunto / Fecha con tabulaciones (Para y Asunto en negrita; el valor de Para tambien en negrita; Fecha con dia en negrita)
+- Luego parrafo introductorio justificado con puesto y organo en negrita
+- Secciones principales con numeracion romana en negrita: I. BASE LEGAL, II. ANALISIS, III. CONCLUSIONES
+- Parrafos en decimal con sangria francesa:
+  * Base legal: 1.1, 1.2, 1.3, 1.4
+  * Analisis: 2.1 hasta 2.14 (sin saltar ninguno)
+  * Conclusiones: 3.1, 3.2, 3.3, 3.4
+- Subfunciones ROF y MPP: a), b), c) con sangria adicional, en cursiva negrita
+- Criterios 13.5: a), b), c) con titulo en negrita y contenido debajo
+
+CONTENIDO DE CADA NUMERAL:
+- 2.1: Cita articulo ROF, describe el organo (nombre del organo en negrita)
+- 2.2: Funcion mas relevante del ROF vinculada al puesto (en negrita)
+- 2.3: Parrafo sobre CPE 2020
+- 2.4: Parrafo sobre actualizacion CPE 2023 + tabla CPE (5 columnas: Organo, Unidad Organica, Codigo del Puesto, Denominacion del Puesto, Situacion)
+- 2.5: Lista funciones ROF en cursiva con a), b), c)
+- 2.6: Impacto del organo (tipo de impacto en negrita)
+- 2.7: Mision del puesto en cursiva (puesto en negrita)
+- 2.8: Intro funciones MPP
+- Subfunciones MPP: a), b), c) en cursiva negrita
+- 2.9: Carga laboral con campo en negrita: [AREA USUARIA: Describir carga operativa con datos concretos: expedientes en tramite, PADs activos, recursos de impugnacion pendientes, plazos proximos, etc.]
+- 2.10: Parrafo supuesto excepcional
+- 2.11: Criterios 13.5 con a), b), c)
+  * a) Incremento extraordinario: titulo negrita + [AREA USUARIA: Describir actividades nuevas o incrementadas, caracter estacional o coyuntural, vinculacion con metas institucionales 2026.]
+  * b) Temporalidad: titulo negrita + texto fijo sobre concurso publico
+  * c) Urgencia: titulo negrita + [AREA USUARIA: Senalar por que no puede esperar al concurso, impacto concreto de la demora.]
+- 2.12: Impacto presupuestal + tabla presupuestal (4 columnas: N, Organo/Unidad Organica, Denominacion del puesto, Monto mensual S/) + nota referencial en cursiva
+- 2.13: Caracteristicas + tabla 2 columnas con primera columna gris (Denominacion, Codigo, Cantidad de Posiciones, Plazo)
+- 2.14: Solicitud CV + tabla candidato (3 columnas: Organo/Unidad Organica, Denominacion del puesto, Candidato/a)
+- 3.4: Referencia explicita al numeral 2.14
+
+TABLAS:
+- Borde simple negro, encabezado gris con texto negrita, texto centrado en celdas
+- Tabla CPE: encabezado gris, fila datos sin sombreado
+- Tabla presupuestal: 4 columnas, nota en cursiva debajo
+- Tabla caracteristicas: 2 columnas, primera columna siempre gris
+- Tabla candidato: 3 columnas, encabezado gris
+
+`;
+
   const datos = 'DATOS DEL REQUERIMIENTO:\n- Organo: ' + org + '\n- Unidad organica: ' + uni + '\n- Denominacion del puesto: ' + p.nombre + '\n- Codigo del puesto: ' + p.codigo + '\n- N de posiciones: ' + pos + '\n- Plazo de contratacion: ' + plazoTxt + '\n- Compensacion mensual (referencial): ' + p.pago + '\n- Candidato/a: ' + (candidato || '[Apellidos y Nombres del candidato/a]') + '\n- Fecha: Lima, ' + fecha + '\n\n';
   const mpp = 'DATOS DEL MPP:\nMision del puesto: ' + (p.mision || 'No disponible') + '\n' + funcionesStr + '\n\n';
   const rofSection = 'DATOS DEL ROF (' + org + '):\n' + rofTxt + '\n\n';
-  const instrucciones = 'INSTRUCCIONES:\n1. En la seccion 2.1 usa el articulo ' + (rof.articulo || '[N]') + ' del ROF. Redacta 2 parrafos institucionales: describe el organo y su funcion general; luego cita la funcion mas relevante vinculada al puesto.\n2. En la seccion 2.3 elige las 3 funciones del MPP mas relevantes y listarlas en cursiva.\n3. Los campos de carga laboral, incremento extraordinario y urgencia dejalos con [AREA USUARIA: instruccion precisa].\n4. Genera el informe completo con esta estructura exacta:\n\n';
-  const plantilla = 'MINISTERIO DE ECONOMIA Y FINANZAS\nOFICINA GENERAL DE RECURSOS HUMANOS\n\n"DECENIO DE LA IGUALDAD DE OPORTUNIDADES PARA MUJERES Y HOMBRES"\n"ANO DE LA RECUPERACION Y CONSOLIDACION DE LA ECONOMIA PERUANA"\n\nINFORME N [completar]-2026-EF/49.03\n\nPara         :    [Nombre y cargo del/la superior jerarquico/a]\nAsunto       :    Requerimiento de Contratacion Directa en el marco de la Ley N 30057, Ley del Servicio Civil\nFecha        :    Lima, ' + fecha + '\n\n[Continua con todas las secciones: parrafo introductorio, 1. BASE LEGAL, 2. ANALISIS (2.1, 2.2 con tabla CPE del puesto ' + p.nombre + ' codigo ' + p.codigo + ' situacion Vacante, 2.3 con justificacion completa incluyendo funciones ROF, mision y funciones MPP, tablas de compensacion ' + p.pago + ' y caracteristicas con plazo ' + plazoTxt + ' y ' + pos + ' posiciones), 3. CONCLUSIONES, y firma]';
 
-  const prompt = intro + datos + mpp + rofSection + instrucciones + plantilla;
+  const prompt = intro + datos + mpp + rofSection;
 
   navigator.clipboard.writeText(prompt).then(() => {
     document.getElementById('instruccion-box').style.display = 'block';
